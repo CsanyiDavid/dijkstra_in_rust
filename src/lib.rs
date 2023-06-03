@@ -54,11 +54,11 @@ pub mod graph {
             }
         }
 
-        fn node_iter<I>(&self) -> impl Iterator<Item=&u32> {
+        pub fn node_iter(&self) -> impl Iterator<Item=&u32> {
             self.nodes.iter()
         }
 
-        fn out_arc_iter<I>(&self, v: u32) -> impl Iterator<Item=&Arc> {
+        pub fn out_arc_iter(&self, v: u32) -> impl Iterator<Item=&Arc> {
             self.out_arcs.get(&v).unwrap().iter()
         }
     }
@@ -96,5 +96,43 @@ pub mod graph {
         {
             self.nodes.iter()
         }*/
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use crate::graph::{ListDigraph, DiGraph, Arc};
+
+
+    #[test]
+    fn add_and_count() {
+        let mut g = ListDigraph::new();
+        assert_eq!(g.node_count(), 0);
+        assert_eq!(g.arc_count(), 0);
+        g.add_node(0);
+        g.add_node(1);
+        g.add_node(2);
+        g.add_node(4);
+        g.add_arc(Arc::new(0, 1, 0));
+        g.add_arc(Arc::new(0, 4, 0));
+        assert_eq!(g.node_count(), 4);
+        assert_eq!(g.arc_count(), 2);
+        assert_eq!(g.out_degree(0), 2);
+        assert_eq!(g.out_degree(1), 0);
+    }
+
+    #[test]
+    fn node_iterator() {
+        let mut g = ListDigraph::new();
+        let mut v: HashSet<u32> = HashSet::new();
+        for i in 0..10 {
+            g.add_node(i);
+            v.insert(i);
+        }
+        let it = g.node_iter();
+        assert_eq!(it.map(|x|{*x}).collect::<HashSet<u32>>(), v);
     }
 }
