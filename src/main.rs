@@ -1,4 +1,4 @@
-use dijkstra_in_rust::graph::{ListDigraph, Arc, Graph};
+use dijkstra_in_rust::graph::{ListDigraph, Arc, DiGraph};
 
 fn main() {
     let mut g = ListDigraph::new();
