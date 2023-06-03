@@ -10,12 +10,8 @@ pub mod graph {
         fn add_nodemap(&mut self, name: &str, fill_value: i32);
         fn get_nm_value(&self, name: &str, v: u32) -> Option<&i32>;
         fn change_nm_value(&mut self, name: &str, v: u32, new_value: i32);
-        /*fn node_iter<I>(&self) -> I
-            where I: Iterator<Item=&'a u32> + 'a;
-        Why can't do this???
-        Temporarily implement iterators in ListDigraph
-        and try to fix this later
-        */
+        fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_>;
+        fn out_arc_iter(&self, v: u32) -> Box<dyn Iterator<Item=&Arc> + '_>;
     }
 
     #[derive(Eq, PartialEq, Hash)]
@@ -55,14 +51,6 @@ pub mod graph {
                 nodemaps: HashMap::new(),
             }
         }
-
-        pub fn node_iter(&self) -> impl Iterator<Item=&u32> {
-            self.nodes.iter()
-        }
-
-        pub fn out_arc_iter(&self, v: u32) -> impl Iterator<Item=&Arc> {
-            self.out_arcs.get(&v).unwrap().iter()
-        }
     }
 
     impl DiGraph for ListDigraph {
@@ -94,14 +82,14 @@ pub mod graph {
         }
 
         fn add_nodemap(&mut self, name: &str, fill_value: i32){
-            let mut m = self.node_iter()
+            let m = self.node_iter()
                 .map(|v|{(*v, fill_value)})
                 .collect::<HashMap<u32, i32>>();
             self.nodemaps.insert(name.to_string(), m);
         }
 
         fn get_nm_value(&self, name: &str, k: u32) -> Option<&i32> {
-            self.nodemaps[name].get(&k)
+            self.nodemaps.get(name).unwrap().get(&k)
         }
 
         fn change_nm_value(&mut self, name: &str, k: u32, new_value: i32){
@@ -111,11 +99,13 @@ pub mod graph {
                 .unwrap() = new_value;
         }
 
-        /*fn node_iter<I>(&self) -> I 
-            where I: Iterator<Item=&'a u32> + 'a
-        {
-            self.nodes.iter()
-        }*/
+        fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_> {
+            Box::new(self.nodes.iter())
+        }
+
+        fn out_arc_iter(&self, v: u32) -> Box<dyn Iterator<Item=&Arc> + '_> {
+            Box::new(self.out_arcs.get(&v).unwrap().iter())
+        }
     }
 }
 
