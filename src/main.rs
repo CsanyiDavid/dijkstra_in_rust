@@ -9,4 +9,5 @@ fn main() {
     g.add_arc(Arc::new(0, 1, 0));
     println!("Node cnt: {}", g.node_count());
     println!("Arc cnt: {}", g.arc_count());
+
 }

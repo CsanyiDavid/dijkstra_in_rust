@@ -7,9 +7,12 @@ pub mod graph {
         fn out_degree(&self, v: u32) -> usize;
         fn add_node(&mut self, v: u32);
         fn add_arc(&mut self, a: Arc);
-        //fn node_iter<I>(&self) -> I
-        //    where I: Iterator + 'a;
-
+        /*fn node_iter<I>(&self) -> I
+            where I: Iterator<Item=&'a u32> + 'a;
+        Why can't do this???
+        Temporarily implement iterators in ListDigraph
+        and try to fix this later
+        */
     }
 
     pub struct Arc {
@@ -50,6 +53,14 @@ pub mod graph {
                 arc_cnt: 0,
             }
         }
+
+        fn node_iter<I>(&self) -> impl Iterator<Item=&u32> {
+            self.nodes.iter()
+        }
+
+        fn out_arc_iter<I>(&self, v: u32) -> impl Iterator<Item=&Arc> {
+            self.out_arcs.get(&v).unwrap().iter()
+        }
     }
 
     impl<'a> DiGraph<'a> for ListDigraph{
@@ -81,7 +92,7 @@ pub mod graph {
         }
 
         /*fn node_iter<I>(&self) -> I 
-            where I: Iterator + 'a
+            where I: Iterator<Item=&'a u32> + 'a
         {
             self.nodes.iter()
         }*/
