@@ -1,20 +1,29 @@
 pub mod graph {
     use std::collections::HashMap;
+    use std::fmt;
 
     pub trait DiGraph {
         fn node_count(&self) -> usize;
         fn arc_count(&self) -> usize;
         fn out_degree(&self, v: u32) -> usize;
+
         fn add_node(&mut self, v: u32);
-        fn add_arc(&mut self, a: Arc);
+        fn add_arc(&mut self, s: u32, t: u32);
+
         fn add_nodemap(&mut self, name: &str, fill_value: i32);
-        fn get_nm_value(&self, name: &str, v: u32) -> Option<&i32>;
-        fn change_nm_value(&mut self, name: &str, v: u32, new_value: i32);
+        fn get_nm_value(&self, name: &str, k: u32) -> Option<&i32>;
+        fn change_nm_value(&mut self, name: &str, k: u32, new_value: i32);
+
+        fn add_arcmap(&mut self, name: &str, fill_value: i32);
+        fn get_am_value(&self, name: &str, k: Arc) -> Option<&i32>;
+        fn change_am_value(&mut self, name: &str, k: Arc, new_value: i32);
+
         fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_>;
         fn out_arc_iter(&self, v: u32) -> Box<dyn Iterator<Item=&Arc> + '_>;
+        fn arc_iter(&self) -> Box<dyn Iterator<Item=&Arc> +'_>;
     }
 
-    #[derive(Eq, PartialEq, Hash)]
+    #[derive(Eq, PartialEq, Hash, Copy, Clone)]
     pub struct Arc {
         s: u32, //source
         t: u32, //target
@@ -34,12 +43,19 @@ pub mod graph {
         }
     }
 
+    impl fmt::Display for Arc {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "[{}->{}]", self.s, self.t)
+        }
+    }
+
     pub struct ListDigraph {
         nodes: Vec<u32>,
         out_arcs: HashMap<u32, Vec<Arc>>,
         arc_cnt: usize,
 
         nodemaps: HashMap<String, HashMap<u32, i32>>,
+        arcmaps: HashMap<String, HashMap<Arc, i32>>,
     }
 
     impl ListDigraph {
@@ -49,6 +65,7 @@ pub mod graph {
                 out_arcs: HashMap::<u32, Vec<Arc>>::new(),
                 arc_cnt: 0,
                 nodemaps: HashMap::new(),
+                arcmaps: HashMap::new(),
             }
         }
     }
@@ -71,10 +88,10 @@ pub mod graph {
             self.out_arcs.insert(v, Vec::<Arc>::new());
         }
 
-        fn add_arc(&mut self, a: Arc) {
-            match self.out_arcs.get_mut(&a.source()) {
+        fn add_arc(&mut self, s: u32, t: u32) {
+            match self.out_arcs.get_mut(&s) {
                 Some(v) => {
-                    v.push(a);
+                    v.push(Arc{s, t});
                     self.arc_cnt += 1;
                 }
                 None => panic!("")
@@ -99,12 +116,37 @@ pub mod graph {
                 .unwrap() = new_value;
         }
 
+        fn add_arcmap(&mut self, name: &str, fill_value: i32) {
+            let m: HashMap<Arc, i32> = self.arc_iter()
+                .map(|a|{(a.clone(), fill_value)})
+                .collect::<HashMap<Arc, i32>>();
+            self.arcmaps.insert(name.to_string(), m);
+        }
+
+        fn get_am_value(&self, name: &str, k: Arc) -> Option<&i32> {
+            self.arcmaps.get(name).unwrap().get(&k)
+        }
+        
+        fn change_am_value(&mut self, name: &str, k: Arc, new_value: i32) {
+            *self.arcmaps.get_mut(name)
+                .unwrap()
+                .get_mut(&k)
+                .unwrap() = new_value;
+        }
+
         fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_> {
             Box::new(self.nodes.iter())
         }
 
         fn out_arc_iter(&self, v: u32) -> Box<dyn Iterator<Item=&Arc> + '_> {
             Box::new(self.out_arcs.get(&v).unwrap().iter())
+        }
+
+        fn arc_iter(&self) -> Box<dyn Iterator<Item=&Arc> + '_> {
+            let it = self.node_iter().flat_map(
+                |&v| self.out_arc_iter(v)
+            );
+            Box::new(it)
         }
     }
 }
