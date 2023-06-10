@@ -7,16 +7,16 @@ pub mod graph {
         fn arc_count(&self) -> usize;
         fn out_degree(&self, v: u32) -> usize;
 
-        fn add_node(&mut self, v: u32);
-        fn add_arc(&mut self, s: u32, t: u32);
+        fn add_node(&mut self, v: u32) -> Result<(), String>;
+        fn add_arc(&mut self, s: u32, t: u32) -> Result<(), String>;
 
-        fn add_nodemap(&mut self, name: &str, fill_value: i32);
+        fn add_nodemap(&mut self, name: &str, fill_value: i32) -> Result<(), String>;
         fn get_nm_value(&self, name: &str, k: u32) -> Option<&i32>;
-        fn change_nm_value(&mut self, name: &str, k: u32, new_value: i32);
+        fn change_nm_value(&mut self, name: &str, k: u32, new_value: i32) -> Result<(), String>;
 
-        fn add_arcmap(&mut self, name: &str, fill_value: i32);
-        fn get_am_value(&self, name: &str, k: Arc) -> Option<&i32>;
-        fn change_am_value(&mut self, name: &str, k: Arc, new_value: i32);
+        fn add_arcmap(&mut self, name: &str, fill_value: i32) -> Result<(), String>;
+        fn get_am_value(&self, name: &str, k: &Arc) -> Option<&i32>;
+        fn change_am_value(&mut self, name: &str, k: &Arc, new_value: i32) -> Result<(), String>;
 
         fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_>;
         fn out_arc_iter(&self, v: u32) -> Box<dyn Iterator<Item=&Arc> + '_>;
@@ -50,7 +50,6 @@ pub mod graph {
     }
 
     pub struct ListDigraph {
-        nodes: Vec<u32>,
         out_arcs: HashMap<u32, Vec<Arc>>,
         arc_cnt: usize,
 
@@ -61,7 +60,6 @@ pub mod graph {
     impl ListDigraph {
         pub fn new() -> ListDigraph {
             ListDigraph {
-                nodes: Vec::<u32>::new(),
                 out_arcs: HashMap::<u32, Vec<Arc>>::new(),
                 arc_cnt: 0,
                 nodemaps: HashMap::new(),
@@ -72,7 +70,7 @@ pub mod graph {
 
     impl DiGraph for ListDigraph {
         fn node_count(&self) -> usize {
-            self.nodes.len()
+            self.out_arcs.len()
         }
 
         fn arc_count(&self) -> usize {
@@ -83,59 +81,98 @@ pub mod graph {
             self.out_arcs.get(&v).unwrap().len()
         }
 
-        fn add_node(&mut self, v: u32){
-            self.nodes.push(v);
-            self.out_arcs.insert(v, Vec::<Arc>::new());
-        }
-
-        fn add_arc(&mut self, s: u32, t: u32) {
-            match self.out_arcs.get_mut(&s) {
-                Some(v) => {
-                    v.push(Arc{s, t});
-                    self.arc_cnt += 1;
-                }
-                None => panic!("")
+        fn add_node(&mut self, v: u32) -> Result<(), String> {
+            if self.out_arcs.contains_key(&v){
+                Err("Node already exists!".to_string())
+            } else {
+                self.out_arcs.insert(v, Vec::<Arc>::new());
+                Ok(())
             }
         }
 
-        fn add_nodemap(&mut self, name: &str, fill_value: i32){
-            let m = self.node_iter()
-                .map(|v|{(*v, fill_value)})
-                .collect::<HashMap<u32, i32>>();
-            self.nodemaps.insert(name.to_string(), m);
+        fn add_arc(&mut self, s: u32, t: u32) -> Result<(), String> {
+            if self.out_arcs.contains_key(&s) && self.out_arcs.contains_key(&t) {
+                let arc_vec = self.out_arcs.get_mut(&s).unwrap();
+                arc_vec.push(Arc{s, t});
+                self.arc_cnt += 1;
+                Ok(())
+            } else {
+                Err("Invalid nodes!".to_string())
+            }
+        }
+
+        fn add_nodemap(&mut self, name: &str, fill_value: i32) -> Result<(), String>{
+            if self.nodemaps.contains_key(name) {
+                Err("A nodemap with this name already exists!".to_string())
+            } else {
+                let m = self.node_iter()
+                    .map(|v|{(*v, fill_value)})
+                    .collect::<HashMap<u32, i32>>();
+                self.nodemaps.insert(name.to_string(), m);
+                Ok(())
+            }
         }
 
         fn get_nm_value(&self, name: &str, k: u32) -> Option<&i32> {
-            self.nodemaps.get(name).unwrap().get(&k)
+            let nm_option = self.nodemaps.get(name);
+            match nm_option {
+                Some(nm) => nm.get(&k),
+                None => None,
+            }
         }
 
-        fn change_nm_value(&mut self, name: &str, k: u32, new_value: i32){
-            *self.nodemaps.get_mut(name)
-                .unwrap()
-                .get_mut(&k)
-                .unwrap() = new_value;
+        fn change_nm_value(&mut self, name: &str, k: u32, new_value: i32) -> Result<(), String> {
+            let nm_option = self.nodemaps.get_mut(name);
+            match nm_option {
+                Some(nm) => {
+                    let value_option = nm.get_mut(&k);
+                    match value_option {
+                        Some(value) => *value = new_value,
+                        None => return Err("Key doesn't exists in nodemap!".to_string())
+                    }
+                },
+                None => return Err("Nodemap doesn't exists!".to_string())
+            };
+            Ok(())
         }
 
-        fn add_arcmap(&mut self, name: &str, fill_value: i32) {
-            let m: HashMap<Arc, i32> = self.arc_iter()
-                .map(|a|{(a.clone(), fill_value)})
-                .collect::<HashMap<Arc, i32>>();
-            self.arcmaps.insert(name.to_string(), m);
+        fn add_arcmap(&mut self, name: &str, fill_value: i32) -> Result<(), String> {
+            if self.arcmaps.contains_key(name) {
+                Err("An arcmap with this name already exists!".to_string())
+            } else {
+                let m: HashMap<Arc, i32> = self.arc_iter()
+                    .map(|a|{(a.clone(), fill_value)})
+                    .collect::<HashMap<Arc, i32>>();
+                self.arcmaps.insert(name.to_string(), m);
+                Ok(())
+            }
         }
 
-        fn get_am_value(&self, name: &str, k: Arc) -> Option<&i32> {
-            self.arcmaps.get(name).unwrap().get(&k)
+        fn get_am_value(&self, name: &str, k: &Arc) -> Option<&i32> {
+            let am_option = self.arcmaps.get(name);
+            match am_option {
+                Some(am) => am.get(&k),
+                None => None,
+            }
         }
         
-        fn change_am_value(&mut self, name: &str, k: Arc, new_value: i32) {
-            *self.arcmaps.get_mut(name)
-                .unwrap()
-                .get_mut(&k)
-                .unwrap() = new_value;
+        fn change_am_value(&mut self, name: &str, k: &Arc, new_value: i32) -> Result<(), String> {
+            let am_option = self.arcmaps.get_mut(name);
+                match am_option {
+                    Some(am) => {
+                        let value_option = am.get_mut(&k);
+                        match value_option {
+                            Some(value) => *value = new_value,
+                            None => return Err("Key doesn't exists in arcmap!".to_string())
+                        }
+                    },
+                    None => return Err("Arcmap doesn't exists!".to_string())
+                };
+                Ok(())
         }
 
         fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_> {
-            Box::new(self.nodes.iter())
+            Box::new(self.out_arcs.keys())
         }
 
         fn out_arc_iter(&self, v: u32) -> Box<dyn Iterator<Item=&Arc> + '_> {
