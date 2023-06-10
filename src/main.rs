@@ -25,4 +25,9 @@ fn main() {
         print!("{} {}, ", a, g.get_am_value("c", a).unwrap());
     }
     print!("\n");
+    g.fill_arcmap("c", 42).unwrap();
+    for a in g.arc_iter() {
+        print!("{} {}, ", a, g.get_am_value("c", a).unwrap());
+    }
+    print!("\n");
 }

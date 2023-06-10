@@ -8,15 +8,20 @@ pub mod graph {
         fn out_degree(&self, v: u32) -> usize;
 
         fn add_node(&mut self, v: u32) -> Result<(), String>;
+        fn contains_node(&self, v: u32) -> bool;
         fn add_arc(&mut self, s: u32, t: u32) -> Result<(), String>;
-
+        fn contains_arc(&self, s: u32, t:u32) -> bool;
         fn add_nodemap(&mut self, name: &str, fill_value: i32) -> Result<(), String>;
+        fn contains_nodemap(&self, name: &str) -> bool;
         fn get_nm_value(&self, name: &str, k: u32) -> Option<&i32>;
         fn change_nm_value(&mut self, name: &str, k: u32, new_value: i32) -> Result<(), String>;
+        fn fill_nodemap(&mut self, name: &str, fill_value: i32) -> Result<(), String>;
 
         fn add_arcmap(&mut self, name: &str, fill_value: i32) -> Result<(), String>;
+        fn contains_arcmap(&self, name: &str) -> bool;
         fn get_am_value(&self, name: &str, k: &Arc) -> Option<&i32>;
         fn change_am_value(&mut self, name: &str, k: &Arc, new_value: i32) -> Result<(), String>;
+        fn fill_arcmap(&mut self, name: &str, fill_value: i32) -> Result<(), String>;
 
         fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_>;
         fn out_arc_iter(&self, v: u32) -> Box<dyn Iterator<Item=&Arc> + '_>;
@@ -90,6 +95,10 @@ pub mod graph {
             }
         }
 
+        fn contains_node(&self, v: u32) -> bool {
+            self.out_arcs.contains_key(&v)
+        }
+
         fn add_arc(&mut self, s: u32, t: u32) -> Result<(), String> {
             if self.out_arcs.contains_key(&s) && self.out_arcs.contains_key(&t) {
                 let arc_vec = self.out_arcs.get_mut(&s).unwrap();
@@ -98,6 +107,13 @@ pub mod graph {
                 Ok(())
             } else {
                 Err("Invalid nodes!".to_string())
+            }
+        }
+
+        fn contains_arc(&self, s: u32, t: u32) -> bool {
+            match self.out_arcs.get(&s) {
+                Some(arc_vec) => arc_vec.contains(&Arc{s,t}),
+                None => false,
             }
         }
 
@@ -111,6 +127,10 @@ pub mod graph {
                 self.nodemaps.insert(name.to_string(), m);
                 Ok(())
             }
+        }
+
+        fn contains_nodemap(&self, name: &str) -> bool {
+            self.nodemaps.contains_key(name)
         }
 
         fn get_nm_value(&self, name: &str, k: u32) -> Option<&i32> {
@@ -136,6 +156,17 @@ pub mod graph {
             Ok(())
         }
 
+        fn fill_nodemap(&mut self, name: &str, fill_value: i32) -> Result<(), String> {
+            if self.contains_nodemap(name) {
+                for v in self.nodemaps.get_mut(name).unwrap().values_mut() {
+                    *v = fill_value;
+                }
+                Ok(())
+            } else {
+                Err("Nodemap doesn't exists!".to_string())
+            }
+        }
+
         fn add_arcmap(&mut self, name: &str, fill_value: i32) -> Result<(), String> {
             if self.arcmaps.contains_key(name) {
                 Err("An arcmap with this name already exists!".to_string())
@@ -146,6 +177,10 @@ pub mod graph {
                 self.arcmaps.insert(name.to_string(), m);
                 Ok(())
             }
+        }
+
+        fn contains_arcmap(&self, name: &str) -> bool {
+            self.arcmaps.contains_key(name)
         }
 
         fn get_am_value(&self, name: &str, k: &Arc) -> Option<&i32> {
@@ -171,6 +206,17 @@ pub mod graph {
                 Ok(())
         }
 
+        fn fill_arcmap(&mut self, name: &str, fill_value: i32) -> Result<(), String> {
+            if self.contains_arcmap(name) {
+                for a in self.arcmaps.get_mut(name).unwrap().values_mut() {
+                    *a = fill_value;
+                }
+                Ok(())
+            } else {
+                Err("Arcmap doesn't exists!".to_string())
+            }
+        }
+
         fn node_iter(&self) -> Box<dyn Iterator<Item=&u32> + '_> {
             Box::new(self.out_arcs.keys())
         }
@@ -186,6 +232,59 @@ pub mod graph {
             Box::new(it)
         }
     }
+
+    /*mod dijkstra {
+        use super::DiGraph;
+        use priority_queue::PriorityQueue;
+
+        pub fn dijkstra<G: DiGraph>(g: &mut G, costmap_name: &str, s: u32) -> Result<(), String>{
+            if !g.contains_arcmap(costmap_name) {
+                return Err(format!("Arcmap with name {} doesn't exists!", costmap_name));
+            }
+            if !g.contains_arcmap(costmap_name) {
+                return Err(format!("Arcmap with name {} doesn't exists!", costmap_name));
+            }
+            if g.contains_nodemap("dist") {
+                g.fill_nodemap("dist", i32::MAX)?;
+            } else {
+                g.add_nodemap("dist", i32::MAX)?;
+            }
+            if g.contains_nodemap("prev") {
+                g.fill_nodemap("prev", i32::MAX)?;
+            } else {
+                g.add_nodemap("prev", i32::MAX)?;
+            }
+            if g.contains_nodemap("visited") {
+                g.fill_nodemap("visited", 0)?;
+            } else {
+                g.add_nodemap("visited", 0)?;
+            }
+            let mut q: PriorityQueue<u32, i32> = PriorityQueue::new();
+            g.change_nm_value("dist", s, 0)?;
+            g.change_nm_value("prev", s, 0)?;
+            g.change_nm_value("visited", s, 1)?;
+            q.push(s, 0);
+            while !q.is_empty() {
+                let (u, u_dist) = q.pop().unwrap();
+                for a in g.out_arc_iter(u) {
+                    let v = a.target();
+                    let v_dist = *g.get_nm_value("dist", v).unwrap();
+                    let arc_cost = *g.get_am_value(costmap_name, a).unwrap();
+                    if u_dist + arc_cost < v_dist {
+                        g.change_nm_value("dist", v, u_dist + arc_cost);
+                        g.change_nm_value("prev", v, u as i32);
+                        if g.get_nm_value("visited", v)==Some(&1) {
+                            q.change_priority(&v, u_dist + arc_cost);
+                        } else {
+                            q.push(v, u_dist + arc_cost);
+                            g.change_nm_value("visited", v, 1)?;
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
+    }*/
 }
 
 
