@@ -41,7 +41,7 @@ pub mod graph {
         }
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone)]
     pub enum Action {
         AddNode(u32),
         EraseNode(u32),
@@ -146,6 +146,58 @@ pub mod graph {
     }
 }
 
+pub mod maps {
+    use std::collections::HashMap;
+    use crate::graph::{DiGraph, Action};
+
+    pub struct NodeMap<T: Copy> {
+        m: HashMap<u32, T>,
+        default_value: T,
+        version: usize,
+    }
+    
+    impl<T: Copy> NodeMap<T> {
+        pub fn new(default_value: T) -> NodeMap<T> {
+            NodeMap {
+                m: HashMap::new(),
+                default_value,
+                version: 0,
+            }
+        }
+
+        pub fn version(&self) -> usize {
+            self.version
+        }
+
+        //Warning: always must recieve the same graph for correct behaviour
+        pub fn synchronize<G: DiGraph>(&mut self, g: &G) {
+            if g.version() > self.version {
+                for action_id in self.version()+1..g.version()+1 {
+                    let act = g.get_action(action_id).unwrap();
+                    match act {
+                        Action::AddNode(v) => self.m.insert(v, self.default_value),
+                        Action::EraseNode(v) => self.m.remove(&v),
+                        _ => None,
+                    };
+                }
+            }
+        }
+
+        pub fn get(&self, k: &u32) -> Option<&T> {
+            self.m.get(k)
+        }
+
+        pub fn get_mut(&mut self, k: &u32) -> Option<&mut T>  {
+            self.m.get_mut(k)
+        }
+
+        pub fn fill(&mut self, fill_value: T) {
+            for value in self.m.values_mut() {
+                *value = fill_value;
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
