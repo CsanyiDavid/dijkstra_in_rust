@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use dijkstra_in_rust::graph::{ListDigraph, DiGraph, Arc};
 
 fn main() {
@@ -17,17 +19,12 @@ fn main() {
     for v in g.node_iter() {
         print!("{} ", v);
     }
+
+    let mut c: HashMap<u32, u32> = HashMap::new();
+    for v in g.node_iter() {
+        c.insert(*v, 0);
+    }
+
     print!("\n");
 
-    g.add_arcmap("c", 0).unwrap();
-    g.change_am_value("c", &Arc::new(2, 6), 10).unwrap();
-    for a in g.arc_iter() {
-        print!("{} {}, ", a, g.get_am_value("c", a).unwrap());
-    }
-    print!("\n");
-    g.fill_arcmap("c", 42).unwrap();
-    for a in g.arc_iter() {
-        print!("{} {}, ", a, g.get_am_value("c", a).unwrap());
-    }
-    print!("\n");
 }
