@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use dijkstra_in_rust::graph::{ListDigraph, DiGraph, Arc};
-use dijkstra_in_rust::maps::{NodeMap};
+use dijkstra_in_rust::graph::{ListDigraph, DiGraph};
+use dijkstra_in_rust::maps::{ArcMap};
+use dijkstra_in_rust::dijkstra::dijkstra;
 
 fn main() {
     let mut g = ListDigraph::new();
@@ -27,8 +28,9 @@ fn main() {
     }
 
     print!("\n");
-    let mut c = NodeMap::<i32>::new(0);
+    let mut c = ArcMap::<u32>::new(0);
     c.synchronize(&g);
-    c.get(&9).unwrap();
+
+    dijkstra(&g, &c, 0).unwrap();
 
 }

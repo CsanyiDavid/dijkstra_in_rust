@@ -21,7 +21,7 @@ pub mod graph {
         fn get_action(&self, action_id: usize) -> Option<Action>;
     }
 
-    #[derive(Eq, PartialEq, Hash, Copy, Clone)]
+    #[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
     pub struct Arc {
         s: u32, //source
         t: u32, //target
@@ -41,7 +41,7 @@ pub mod graph {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub enum Action {
         AddNode(u32),
         EraseNode(u32),
@@ -150,6 +150,7 @@ pub mod maps {
     use std::collections::HashMap;
     use crate::graph::{DiGraph, Action, Arc};
 
+    #[derive(Debug)]
     pub struct NodeMap<T: Copy> {
         m: HashMap<u32, T>,
         default_value: T,
@@ -198,6 +199,7 @@ pub mod maps {
         }
     }
 
+    #[derive(Debug)]
     pub struct ArcMap<T: Copy> {
         m: HashMap<Arc, T>,
         default_value: T,
@@ -228,6 +230,7 @@ pub mod maps {
                         _ => None,
                     };
                 }
+                self.version = g.version();
             }
         }
 
@@ -247,6 +250,48 @@ pub mod maps {
     }
 }
 
-#[cfg(test)]
-mod tests {
+pub mod dijkstra {
+    use priority_queue::PriorityQueue;
+    use std::cmp::Reverse;
+    use crate::graph::{DiGraph, Arc};
+    use crate::maps::{ArcMap, NodeMap};
+
+    pub fn dijkstra<G: DiGraph>(g: &G, c: &ArcMap<u32>, s: u32)
+        -> Result<(NodeMap<Option<u32>>, NodeMap<Option<Arc>>), String>
+    {
+        if g.version() != c.version() {
+            return Err("Unsynchronized graph and costmap!".to_string());
+        }
+        let mut dist: NodeMap<Option<u32>> = NodeMap::new(None);
+        let mut prev: NodeMap<Option<Arc>> = NodeMap::new(None);
+        dist.synchronize(g);
+        prev.synchronize(g);
+        *dist.get_mut(&0).unwrap() = Some(0);
+        let mut q = PriorityQueue::<u32, Reverse<u32>>::new();
+        q.push(s, Reverse(0));
+        while !q.is_empty() {
+            let (u, Reverse(dist_u)) = q.pop().unwrap();
+            
+            for a in g.out_arc_iter(u) {
+                let v = a.target();
+                let dist_v = dist.get(&v).unwrap();
+                let new_dist_v: u32 = dist_u + c.get(a).unwrap();
+                match dist_v {
+                    None => {
+                        *dist.get_mut(&v).unwrap() = Some(new_dist_v);
+                        *prev.get_mut(&v).unwrap() = Some(*a);
+                        q.push(v, Reverse(new_dist_v));
+                    }
+                    Some(dist_v) => {
+                        if new_dist_v < *dist_v {
+                            *dist.get_mut(&v).unwrap() = Some(new_dist_v);
+                            *prev.get_mut(&v).unwrap() = Some(*a);
+                            q.change_priority(&v, Reverse(new_dist_v));
+                        }
+                    }
+                }
+            }
+        }
+        Ok((dist, prev))
+    }
 }
