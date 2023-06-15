@@ -148,7 +148,7 @@ pub mod graph {
 
 pub mod maps {
     use std::collections::HashMap;
-    use crate::graph::{DiGraph, Action};
+    use crate::graph::{DiGraph, Action, Arc};
 
     pub struct NodeMap<T: Copy> {
         m: HashMap<u32, T>,
@@ -188,6 +188,54 @@ pub mod maps {
         }
 
         pub fn get_mut(&mut self, k: &u32) -> Option<&mut T>  {
+            self.m.get_mut(k)
+        }
+
+        pub fn fill(&mut self, fill_value: T) {
+            for value in self.m.values_mut() {
+                *value = fill_value;
+            }
+        }
+    }
+
+    pub struct ArcMap<T: Copy> {
+        m: HashMap<Arc, T>,
+        default_value: T,
+        version: usize,
+    }
+    
+    impl<T: Copy> ArcMap<T> {
+        pub fn new(default_value: T) -> ArcMap<T> {
+            ArcMap {
+                m: HashMap::new(),
+                default_value,
+                version: 0,
+            }
+        }
+
+        pub fn version(&self) -> usize {
+            self.version
+        }
+
+        //Warning: always must recieve the same graph for correct behaviour
+        pub fn synchronize<G: DiGraph>(&mut self, g: &G) {
+            if g.version() > self.version {
+                for action_id in self.version()+1..g.version()+1 {
+                    let act = g.get_action(action_id).unwrap();
+                    match act {
+                        Action::AddArc(a) => self.m.insert(a, self.default_value),
+                        Action::EraseArc(a) => self.m.remove(&a),
+                        _ => None,
+                    };
+                }
+            }
+        }
+
+        pub fn get(&self, k: &Arc) -> Option<&T> {
+            self.m.get(k)
+        }
+
+        pub fn get_mut(&mut self, k: &Arc) -> Option<&mut T>  {
             self.m.get_mut(k)
         }
 
